@@ -1,0 +1,82 @@
+(var ! not != not=)
+
+(var types {}
+     monads {}
+     fields {})
+
+(var all ["str" "vec" "dict" "num"]) ; Short hands
+
+(function check-type [field value] [field-name types]
+  (assert "Unaccepted type!" (types (type-of value)))
+  [field value])
+
+(function sort-dict dictn
+  (-> dictn keys (map str) sort (map #(catch (eval %) %)) (flat-map #[% (dictn %)]) (into {})))
+(function sieve-dict dictn
+  (-> dictn (map @((... and (map (comp null? !) %)))) sieve dict))
+(function normalize type according-to
+  (into {} (flat-map (fn [k v] (let value (type k)) (if (null? value) [k null] [k value])) according-to)))
+
+(function new type
+  (let infered? (-> args len even?)
+       [alg? type-specs] ((juxt :algebraic? (omit :algebraic?)) ((if infered? (type-of-field type) type) types))
+       field-value (into {} (skip (infered? 0 1) args)))
+  (assert "Algebraic types must not contain more than one option!" (-> field-value len (< 1) @(and alg?) !))
+  (let [sorted-fields sorted-specs]  (map sort-dict [field-value type-specs]))
+  (sieve-dict (into (infered? {} {:type-name type}) (flat-map check-type (normalize sorted-fields sorted-specs) sorted-specs))))
+
+(function create-type algebraic? type
+  (var! types assoc type (-> args (skip 2) (into {:algebraic? algebraic?})))
+  (return-when (! algebraic?))
+  (var! fields assoc (-> types type keys (skip 1)) type))
+
+(function type-of-field field
+  (-> fields keys (filter #(% field)) 0 fields))
+(mock type-of (fn value 
+  (let mtype ((unmocked type-of) value)) 
+  (if (= "dict" mtype) 
+    (if (let type  (:type-name value)) 
+        (-> type str (skip 1)) 
+        (if (let type (-> value keys 0 type-of-field))
+            (-> type str (skip 1))
+            "dict"))
+    mtype)))
+
+(function assert-type type args-of
+  (assert "Type error!" (all? (comp type-of [type]) (skip 1 args-of))))
+
+(function create-monad monad bind-func return-func
+  (assert "Monad must be a type!" (monad types))
+  (assert "Monad must be algebraic!" (-> monad types :algebraic?))
+  (var! monads assoc monad bind-func))
+
+(function >>= ma a->mb b->mc
+  (let mops (skip 2 args))
+  ((if b->mc #(.. >>= % mops) val)
+      (-> ma type-of to-key monads #(.. % ma a->mb))))
+
+(function return-monad a variant
+  (new (type-of-field variant) variant a))
+
+(function fmap what to
+  (>>= to (comp what #(return % (to-key (type-of to))))))
+
+(create-type true :maybe :just [_] :nothing [_])
+(create-monad :maybe (fn ma a->mb (match (let v (:just ma)) null (new :nothing _) (a->mb v))))
+
+
+; Tests
+
+(function correct-inputs
+  (if (all? ["rock"  "paper"  "scissors"] args) (new :just args) (new :nothing _)))
+  {:just false}
+(function win-by cs
+  (-> cs [["scissors"  "paper"]  ["rock"  "scissors"]  ["paper"  "rock"]] bool @(new :just)))
+(function result r
+  (let v (:just r))
+  (if (null? v)
+      "Enter correct inputs!"
+      (str "Player " (if v 1 2) " won!")))
+
+(function rock-paper-scissors c1 c2
+  (result (>>= (correct-inputs c1 c2) win-by)))

@@ -1,0 +1,59 @@
+(import "types.ix")
+(import "precise.ix")
+
+;;;;; construction
+
+(create-type false :complex       :real ["num"] :img   ["num"])
+(create-type false :complex-polar :dist ["num"] :theta ["num"])
+
+(var cmplx     #(new :complex       :real % :img %1))
+(var cmplx-plr #(new :complex-polar :dist % :theta %1))
+(var E-complex (cmplx E 0)) ; simplifies some functions later on
+(var i (cmplx 0 1)) ; imaginary root
+;;;;;
+
+;;;;; translation
+(function to-polar complex-num
+  (assert-type "complex" args)
+  (let py-th (fn a b (sqrt (+ (** a 2) (** b 2))))
+       atan-branch (fn [x -sign] (+ (atan x) (if -sign PI 0))))
+  (complex-polar (.. py-th (vals complex-num)) (atan-branch [(.. / (-> complex-num vals reverse)) (neg? (:real complex-num))])))
+(function to-cartesian complex-num
+  (assert-type "complex-polar" args)
+  (let r (:dist complex-num)
+       theta (:theta complex-num))
+  (complex (* r (cosine theta)) (* r (sine theta)) )) ; from polar (r * e^iz) to cartesian (a + ib)
+;;;;;
+
+;;;;; elementary ops
+(function +complex
+    (assert-type "complex" args)
+    (cmplx (reduce + (map :real args)) (reduce + (map :img args))))
+(function *complex
+  (assert-type "complex" args)
+  (let polar-args (map to-polar args))
+  (to-cartesian (cmplx-plr (reduce * (map :dist polar-args)) (reduce + (map :theta polar-args)))))
+(function **complex base exp
+  (assert-type "complex" args)
+  (let [r z] (vals (to-polar base))
+       [a b] (vals exp))
+  (to-cartesian (cmplx-plr (** E (+ (* a (logn r)) (* (neg b) z))) (+ (* b (logn r)) (* a z)) )))
+
+;;; BEST TO JUST ADD/MULTIPLY BY THE NEGATIVE/INVERSE
+(function -complex z1 z2
+  (assert-type "complex" args)
+  (+complex z1 (.. cmplx (map neg (vals z2)))))
+(function /complex z1 z2
+  (assert-type "complex" args)
+  (let safe-inverse #(if (= 0 (round % )) 0 (/ 1 %)))
+  (*complex z1 (.. complex (map safe-inverse (vals z2) ) ) ))
+;;;;;
+
+;;;;; less elementary ops
+(function ln-complex complex-num
+  (assert-type "complex" args)
+  (let polar-num (to-polar complex-num))
+  (cmplx (logn (:dist polar-num)) (:theta polar-num)))
+
+(function abs-complex z (.. (fn a b (sqrt (+ (** a 2) (** b 2)))) (vals z)))
+;;;;;
