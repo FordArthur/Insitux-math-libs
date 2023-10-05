@@ -41,9 +41,11 @@
             (-> type str (skip 1))
             "dict"))
     mtype)))
+(function dbg x (print x) x)
+(mock vals #(for [k v] (dbg %) (when (= k :type-name) (continue)) v))
 
 (function assert-type type args-of
-  (assert "Type error!" (all? (comp type-of [type]) (skip 1 args-of))))
+  (assert (if (all? (comp type-of [type]) (skip 1 args-of)) true (print "Type error: couldn't match " type " with " args-of))))
 
 (function create-monad monad bind-func return-func
   (assert "Monad must be a type!" (monad types))

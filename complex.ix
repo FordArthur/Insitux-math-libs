@@ -2,27 +2,28 @@
 (import "precise.ix")
 
 ;;;;; construction
-
 (create-type false :complex       :real ["num"] :img   ["num"])
 (create-type false :complex-polar :dist ["num"] :theta ["num"])
 
-(var cmplx     #(new :complex       :real % :img %1))
+(var cmplx     #(new :complex       :real % :img %1  ))
 (var cmplx-plr #(new :complex-polar :dist % :theta %1))
 (var E-complex (cmplx E 0)) ; simplifies some functions later on
 (var i (cmplx 0 1)) ; imaginary root
 ;;;;;
 
 ;;;;; translation
-(function to-polar complex-num
+(function dbg x (print x) x)
+(function to-polar complex-num 
   (assert-type "complex" args)
   (let py-th (fn a b (sqrt (+ (** a 2) (** b 2))))
-       atan-branch (fn [x -sign] (+ (atan x) (if -sign PI 0))))
-  (complex-polar (.. py-th (vals complex-num)) (atan-branch [(.. / (-> complex-num vals reverse)) (neg? (:real complex-num))])))
+       atan-branch (fn x -sign (+ (atan x) (if -sign PI 0)))
+       cmplx-vals (vals complex-num))
+  (cmplx-plr (.. py-th cmplx-vals) (atan-branch (.. / cmplx-vals) (neg? (:real complex-num)))))
 (function to-cartesian complex-num
   (assert-type "complex-polar" args)
   (let r (:dist complex-num)
        theta (:theta complex-num))
-  (complex (* r (cosine theta)) (* r (sine theta)) )) ; from polar (r * e^iz) to cartesian (a + ib)
+  (cmplx (* r (cosine theta)) (* r (sine theta)) )) ; from polar (r * e^iz) to cartesian (a + ib)
 ;;;;;
 
 ;;;;; elementary ops
@@ -36,7 +37,7 @@
 (function **complex base exp
   (assert-type "complex" args)
   (let [r z] (vals (to-polar base))
-       [a b] (vals exp))
+       [b a] (vals exp))
   (to-cartesian (cmplx-plr (** E (+ (* a (logn r)) (* (neg b) z))) (+ (* b (logn r)) (* a z)) )))
 
 ;;; BEST TO JUST ADD/MULTIPLY BY THE NEGATIVE/INVERSE
